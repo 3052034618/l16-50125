@@ -44,17 +44,16 @@ function formatDateTime(dateStr: string | undefined): string | undefined {
 
 function getNodeStatus(
   status: PurchaseStatus,
-  phase: 'submit' | 'auto' | 'manager' | 'finance' | 'director' | 'procurement' | 'receipt'
+  phase: 'submit' | 'auto' | 'manager' | 'finance' | 'director' | 'procurement' | 'receipt',
+  approvalRecords: ApprovalRecord[]
 ): 'done' | 'current' | 'pending' | 'rejected' {
   if (status === 'rejected') {
     if (phase === 'submit') return 'done';
     if (phase === 'auto') return 'done';
-    const rejectMap: Record<string, string> = {
-      manager_pending: 'manager',
-      finance_pending: 'finance',
-      director_pending: 'director',
-    };
-    const rejectedAt = rejectMap['manager_pending'] || 'manager';
+
+    const rejectRecord = approvalRecords.find((r) => r.action === 'reject');
+    const rejectedAt = rejectRecord?.approverRole || 'manager';
+
     if (phase === rejectedAt) return 'rejected';
     const order = ['submit', 'auto', 'manager', 'finance', 'director', 'procurement', 'receipt'];
     const rejectIdx = order.indexOf(rejectedAt);
@@ -110,7 +109,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'submit',
     title: '申请提交',
     icon: Send,
-    status: getNodeStatus(status, 'submit'),
+    status: getNodeStatus(status, 'submit', approvalRecords),
     time: formatDateTime(createdAt),
     actor: applicantName,
     comment: '采购申请已提交',
@@ -121,7 +120,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'auto',
     title: '自动审批通过',
     icon: CheckCircle,
-    status: getNodeStatus(status, 'auto'),
+    status: getNodeStatus(status, 'auto', approvalRecords),
     time: autoRec ? formatDateTime(autoRec.createdAt) : undefined,
     actor: autoRec?.approverName || '系统',
     comment: autoRec?.comment || '小额申请自动通过',
@@ -132,7 +131,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'manager',
     title: '部门主管审批',
     icon: FileText,
-    status: getNodeStatus(status, 'manager'),
+    status: getNodeStatus(status, 'manager', approvalRecords),
     time: managerRec ? formatDateTime(managerRec.createdAt) : undefined,
     actor: managerRec?.approverName,
     comment: managerRec?.comment,
@@ -143,7 +142,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'finance',
     title: '财务审批',
     icon: FileText,
-    status: getNodeStatus(status, 'finance'),
+    status: getNodeStatus(status, 'finance', approvalRecords),
     time: financeRec ? formatDateTime(financeRec.createdAt) : undefined,
     actor: financeRec?.approverName,
     comment: financeRec?.comment,
@@ -154,7 +153,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'director',
     title: '采购总监审批',
     icon: FileText,
-    status: getNodeStatus(status, 'director'),
+    status: getNodeStatus(status, 'director', approvalRecords),
     time: directorRec ? formatDateTime(directorRec.createdAt) : undefined,
     actor: directorRec?.approverName,
     comment: directorRec?.comment,
@@ -164,7 +163,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'procurement',
     title: '采购执行',
     icon: ShoppingCart,
-    status: getNodeStatus(status, 'procurement'),
+    status: getNodeStatus(status, 'procurement', approvalRecords),
     time: shipDate ? formatDateTime(shipDate) : orderDate ? formatDateTime(orderDate) : undefined,
     actor: supplierName
       ? shipDate
@@ -178,7 +177,7 @@ export default function ApprovalTimeline({ purchase }: ApprovalTimelineProps) {
     key: 'receipt',
     title: '收货确认',
     icon: Package,
-    status: getNodeStatus(status, 'receipt'),
+    status: getNodeStatus(status, 'receipt', approvalRecords),
     time: formatDateTime(receiptDate),
     actor: receiptConfirmedBy,
     comment: receiptDate ? '物资已收货确认，流程完成' : undefined,

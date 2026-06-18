@@ -161,7 +161,7 @@ export default function NewPurchasePage() {
         toastSuccess('申请提交成功');
       }
 
-      navigate(`/purchases/${purchase.id}`);
+      navigate(`/purchase/${purchase.id}`);
     } catch {
       toastError(asDraft ? '草稿保存失败' : '申请提交失败');
     } finally {

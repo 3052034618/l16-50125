@@ -382,7 +382,7 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <button
-              onClick={() => navigate('/purchases/new')}
+              onClick={() => navigate('/purchase/new')}
               className="flex flex-col items-center gap-2 rounded-lg border border-slate-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 transition-all hover:border-blue-200 hover:shadow-sm"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500 text-white">
@@ -391,7 +391,7 @@ export default function DashboardPage() {
               <span className="text-sm font-medium text-slate-700">新建申请</span>
             </button>
             <button
-              onClick={() => navigate('/purchases')}
+              onClick={() => navigate('/purchase/list')}
               className="flex flex-col items-center gap-2 rounded-lg border border-slate-100 bg-gradient-to-br from-emerald-50 to-green-50 p-4 transition-all hover:border-emerald-200 hover:shadow-sm"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500 text-white">
@@ -401,7 +401,7 @@ export default function DashboardPage() {
             </button>
             {canShowApprovalCenter && (
               <button
-                onClick={() => navigate('/approvals')}
+                onClick={() => navigate('/approval')}
                 className="flex flex-col items-center gap-2 rounded-lg border border-slate-100 bg-gradient-to-br from-amber-50 to-orange-50 p-4 transition-all hover:border-amber-200 hover:shadow-sm"
               >
                 <div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500 text-white">
@@ -446,7 +446,7 @@ export default function DashboardPage() {
             <p className="mt-0.5 text-xs text-slate-400">最近10条申请记录</p>
           </div>
           <button
-            onClick={() => navigate('/purchases')}
+            onClick={() => navigate('/purchase/list')}
             className="text-sm font-medium text-blue-600 hover:text-blue-700"
           >
             查看全部 →
@@ -470,7 +470,7 @@ export default function DashboardPage() {
                 {recentPurchases.map((item: PurchaseOrder) => (
                   <tr
                     key={item.id}
-                    onClick={() => navigate(`/purchases/${item.id}`)}
+                    onClick={() => navigate(`/purchase/${item.id}`)}
                     className="cursor-pointer transition-colors hover:bg-slate-50"
                   >
                     <td className="px-5 py-3 font-mono text-xs text-slate-500">{item.id}</td>
@@ -498,7 +498,7 @@ export default function DashboardPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/purchases/${item.id}`);
+                          navigate(`/purchase/${item.id}`);
                         }}
                         className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
                       >
@@ -515,7 +515,7 @@ export default function DashboardPage() {
           <div className="py-16 text-center">
             <p className="text-sm text-slate-400">暂无申请记录</p>
             <button
-              onClick={() => navigate('/purchases/new')}
+              onClick={() => navigate('/purchase/new')}
               className="mt-4 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" />

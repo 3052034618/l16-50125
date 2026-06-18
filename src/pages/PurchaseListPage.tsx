@@ -214,7 +214,7 @@ export default function PurchaseListPage() {
           <p className="mt-1 text-sm text-slate-500">查看和管理您的所有采购申请</p>
         </div>
         <button
-          onClick={() => navigate('/purchases/new')}
+          onClick={() => navigate('/purchase/new')}
           className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/30 active:scale-[0.99]"
         >
           <Plus className="h-4 w-4" />
@@ -366,7 +366,7 @@ export default function PurchaseListPage() {
                   {pageData.map((item) => (
                     <tr
                       key={item.id}
-                      onClick={() => navigate(`/purchases/${item.id}`)}
+                      onClick={() => navigate(`/purchase/${item.id}`)}
                       className="cursor-pointer transition-colors hover:bg-slate-50"
                     >
                       <td className="px-5 py-3 font-mono text-xs text-slate-500">{item.id}</td>
@@ -396,7 +396,7 @@ export default function PurchaseListPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <button
-                            onClick={() => navigate(`/purchases/${item.id}`)}
+                            onClick={() => navigate(`/purchase/${item.id}`)}
                             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -405,7 +405,7 @@ export default function PurchaseListPage() {
                           {item.status === 'draft' && (
                             <>
                               <button
-                                onClick={() => navigate(`/purchases/${item.id}/edit`)}
+                                onClick={() => navigate(`/purchase/new?edit=${item.id}`)}
                                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-amber-600 transition-colors hover:bg-amber-50"
                               >
                                 <Edit3 className="h-3.5 w-3.5" />
@@ -505,7 +505,7 @@ export default function PurchaseListPage() {
                 filters.dateTo
               ) && (
                 <button
-                  onClick={() => navigate('/purchases/new')}
+                  onClick={() => navigate('/purchase/new')}
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                 >
                   <Plus className="h-4 w-4" />

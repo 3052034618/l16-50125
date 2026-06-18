@@ -188,7 +188,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
 
   submitPurchase: (id, user) => {
     const purchase = get().getPurchaseById(id);
-    if (!purchase || purchase.status !== 'draft') return null;
+    if (!purchase || !['draft', 'rejected'].includes(purchase.status)) return null;
     if (purchase.applicantId !== user.id) return null;
 
     const nextNode = getNextApprovalNode(purchase.budget);
