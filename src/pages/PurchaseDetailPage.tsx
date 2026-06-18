@@ -22,6 +22,9 @@ import {
   Save,
   AlertCircle,
   RotateCcw,
+  MessageSquarePlus,
+  MessageSquare,
+  Clock,
 } from 'lucide-react';
 import { usePurchaseStore } from '@/store/purchaseStore';
 import { useAuthStore } from '@/store/authStore';
@@ -29,7 +32,7 @@ import { useToast } from '@/hooks/useToast';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import { ROLE_LABELS, CATEGORY_LABELS, UNIT_OPTIONS } from '@/utils/constants';
 import { canApprove } from '@/utils/workflow';
-import type { PurchaseCategory } from '@/types';
+import type { PurchaseCategory, SupplementaryNote } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
 import CategoryBadge from '@/components/CategoryBadge';
 import Modal from '@/components/Modal';
@@ -49,7 +52,7 @@ interface EditFormData {
 export default function PurchaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { init: initPurchase, getPurchaseById } = usePurchaseStore();
+  const { init: initPurchase, getPurchaseById, addSupplementaryNote } = usePurchaseStore();
   const { init: initAuth, currentUser } = useAuthStore();
   const toast = useToast();
 
@@ -58,6 +61,8 @@ export default function PurchaseDetailPage() {
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [supplierName, setSupplierName] = useState('');
   const [orderDate, setOrderDate] = useState(formatDate(new Date(), 'date'));
+  const [orderNo, setOrderNo] = useState('');
+  const [expectedShipDate, setExpectedShipDate] = useState('');
   const [shipDate, setShipDate] = useState(formatDate(new Date(), 'date'));
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [confirmApproveOpen, setConfirmApproveOpen] = useState(false);
@@ -74,6 +79,8 @@ export default function PurchaseDetailPage() {
     purpose: '',
   });
   const [editErrors, setEditErrors] = useState<{ title?: string; budget?: string; expectedDate?: string }>({});
+
+  const [supplementText, setSupplementText] = useState('');
 
   useEffect(() => {
     initPurchase();
@@ -106,10 +113,14 @@ export default function PurchaseDetailPage() {
 
   const handleSubmit = () => {
     if (!purchase || !currentUser) return;
+    if (supplementText.trim()) {
+      usePurchaseStore.getState().addSupplementaryNote(purchase.id, currentUser, supplementText.trim());
+    }
     const result = usePurchaseStore.getState().submitPurchase(purchase.id, currentUser);
     if (result) {
       toast.success(purchase.status === 'rejected' ? '申请已重新提交' : '申请已提交');
       setIsEditing(false);
+      setSupplementText('');
     } else {
       toast.error('提交失败');
     }
@@ -185,10 +196,14 @@ export default function PurchaseDetailPage() {
       toast.error('保存失败');
       return;
     }
+    if (supplementText.trim()) {
+      usePurchaseStore.getState().addSupplementaryNote(purchase.id, currentUser, supplementText.trim());
+    }
     const result = usePurchaseStore.getState().submitPurchase(purchase.id, currentUser);
     if (result) {
       toast.success('修改已保存并重新提交审批');
       setIsEditing(false);
+      setSupplementText('');
     } else {
       toast.error('提交失败');
     }
@@ -232,12 +247,14 @@ export default function PurchaseDetailPage() {
     }
     const result = usePurchaseStore
       .getState()
-      .placeOrder(purchase.id, supplierName.trim(), orderDate);
+      .placeOrder(purchase.id, supplierName.trim(), orderDate, orderNo.trim() || undefined, expectedShipDate || undefined);
     if (result) {
       toast.success('已填写下单信息');
       setOrderModalOpen(false);
       setSupplierName('');
       setOrderDate(formatDate(new Date(), 'date'));
+      setOrderNo('');
+      setExpectedShipDate('');
     } else {
       toast.error('操作失败');
     }
@@ -270,6 +287,14 @@ export default function PurchaseDetailPage() {
     setConfirmApproveOpen(true);
   };
 
+  const openOrderModal = () => {
+    setSupplierName('');
+    setOrderDate(formatDate(new Date(), 'date'));
+    setOrderNo('');
+    setExpectedShipDate('');
+    setOrderModalOpen(true);
+  };
+
   if (!purchase) {
     return (
       <div className="min-h-screen">
@@ -293,6 +318,17 @@ export default function PurchaseDetailPage() {
   const showBuyerPlaceOrder = isBuyer && ['approved', 'auto_approved'].includes(purchase.status);
   const showBuyerMarkShipped = isBuyer && purchase.status === 'ordered';
   const showApplicantReceive = isApplicant && purchase.status === 'shipped';
+
+  const showSupplementSection =
+    isApplicant && purchase.status === 'rejected';
+
+  const hasOrderInfo =
+    purchase.supplierName ||
+    purchase.orderDate ||
+    purchase.orderNo ||
+    purchase.expectedShipDate ||
+    purchase.shipDate ||
+    purchase.receiptDate;
 
   const inputBaseClass =
     'w-full rounded-lg border bg-slate-50 py-2.5 px-3 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500/20';
@@ -541,20 +577,101 @@ export default function PurchaseDetailPage() {
             )}
           </div>
 
-          {(purchase.supplierName ||
-            purchase.orderDate ||
-            purchase.shipDate ||
-            purchase.receiptDate ||
-            showBuyerPlaceOrder ||
-            showBuyerMarkShipped) && (
+          {purchase.status === 'rejected' && purchase.rejectReason && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+              <h2 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
+                <X className="h-5 w-5" />
+                退回原因
+              </h2>
+              <p className="text-red-600 leading-relaxed">{purchase.rejectReason}</p>
+            </div>
+          )}
+
+          {showSupplementSection && (
+            <div className="rounded-xl shadow-sm border border-amber-200 bg-amber-50/50 p-6">
+              <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <MessageSquarePlus className="h-5 w-5 text-amber-600" />
+                补充说明
+              </h2>
+              <p className="text-sm text-slate-500 mb-3">
+                重新提交前可以添加补充说明，审批人将能看到您的说明
+              </p>
+              <textarea
+                value={supplementText}
+                onChange={(e) => setSupplementText(e.target.value)}
+                placeholder="请输入补充说明，如修改原因、补充信息等..."
+                rows={4}
+                className="w-full rounded-lg border border-amber-200 bg-white py-2.5 px-3 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/20 resize-none"
+              />
+            </div>
+          )}
+
+          {purchase.supplementaryNotes && purchase.supplementaryNotes.length > 0 && (
+            <div className="rounded-xl shadow-sm border border-slate-200 bg-white p-6">
+              <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-blue-600" />
+                补充说明记录
+              </h2>
+              <div className="space-y-4">
+                {purchase.supplementaryNotes.map((note: SupplementaryNote) => (
+                  <div key={note.id} className="rounded-lg bg-blue-50/60 border border-blue-100 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <User className="h-3.5 w-3.5 text-blue-500" />
+                      <span className="text-sm font-medium text-blue-700">{note.authorName}</span>
+                      <span className="text-xs text-slate-400">·</span>
+                      <span className="flex items-center gap-1 text-xs text-slate-400">
+                        <Clock className="h-3 w-3" />
+                        {formatDate(note.createdAt, 'full')}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{note.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(hasOrderInfo || showBuyerPlaceOrder || showBuyerMarkShipped) && (
             <div className="rounded-xl shadow-sm border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-800 mb-5 flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5 text-blue-600" />
                 采购进度
               </h2>
+
+              {purchase.status === 'ordered' || purchase.status === 'shipped' || purchase.status === 'received' ? (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    {[
+                      { label: '已下单', done: true },
+                      { label: '已发货', done: purchase.status === 'shipped' || purchase.status === 'received' },
+                      { label: '已收货', done: purchase.status === 'received' },
+                    ].map((step, idx, arr) => (
+                      <div key={step.label} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center flex-1">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
+                            step.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            {step.done ? <Check className="h-4 w-4" /> : idx + 1}
+                          </div>
+                          <span className={`mt-1.5 text-xs ${step.done ? 'text-emerald-600 font-medium' : 'text-slate-400'}`}>
+                            {step.label}
+                          </span>
+                        </div>
+                        {idx < arr.length - 1 && (
+                          <div className={`h-0.5 flex-1 mt-[-16px] ${step.done ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                 {purchase.supplierName && (
                   <InfoRow icon={Building2} label="供应商" value={purchase.supplierName} />
+                )}
+                {purchase.orderNo && (
+                  <InfoRow icon={Hash} label="订单号" value={purchase.orderNo} />
                 )}
                 {purchase.orderDate && (
                   <InfoRow
@@ -563,10 +680,17 @@ export default function PurchaseDetailPage() {
                     value={formatDate(purchase.orderDate, 'date')}
                   />
                 )}
+                {purchase.expectedShipDate && (
+                  <InfoRow
+                    icon={CalendarDays}
+                    label="预计发货时间"
+                    value={formatDate(purchase.expectedShipDate, 'date')}
+                  />
+                )}
                 {purchase.shipDate && (
                   <InfoRow
                     icon={Truck}
-                    label="发货日期"
+                    label="实际发货日期"
                     value={formatDate(purchase.shipDate, 'date')}
                   />
                 )}
@@ -592,16 +716,6 @@ export default function PurchaseDetailPage() {
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {purchase.status === 'rejected' && purchase.rejectReason && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-6">
-              <h2 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
-                <X className="h-5 w-5" />
-                退回原因
-              </h2>
-              <p className="text-red-600 leading-relaxed">{purchase.rejectReason}</p>
             </div>
           )}
         </div>
@@ -660,7 +774,7 @@ export default function PurchaseDetailPage() {
 
             {showBuyerPlaceOrder && (
               <button
-                onClick={() => setOrderModalOpen(true)}
+                onClick={openOrderModal}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <ShoppingBag className="h-4 w-4" />
@@ -813,13 +927,34 @@ export default function PurchaseDetailPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">下单日期</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">订单号</label>
             <input
-              type="date"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              type="text"
+              value={orderNo}
+              onChange={(e) => setOrderNo(e.target.value)}
+              placeholder="请输入供应商订单号"
+              className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">下单日期</label>
+              <input
+                type="date"
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">预计发货时间</label>
+              <input
+                type="date"
+                value={expectedShipDate}
+                onChange={(e) => setExpectedShipDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
           </div>
         </div>
       </Modal>

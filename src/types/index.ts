@@ -39,8 +39,17 @@ export interface ApprovalRecord {
   approverId: string;
   approverName: string;
   approverRole: UserRole;
-  action: 'approve' | 'reject' | 'auto';
+  action: 'approve' | 'reject' | 'auto' | 'resubmit';
   comment?: string;
+  createdAt: string;
+}
+
+export interface SupplementaryNote {
+  id: string;
+  purchaseId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
   createdAt: string;
 }
 
@@ -61,11 +70,14 @@ export interface PurchaseOrder {
   currentApprover?: UserRole;
   supplierName?: string;
   orderDate?: string;
+  orderNo?: string;
+  expectedShipDate?: string;
   shipDate?: string;
   receiptDate?: string;
   receiptConfirmedBy?: string;
   rejectReason?: string;
   approvalRecords: ApprovalRecord[];
+  supplementaryNotes: SupplementaryNote[];
   createdAt: string;
   updatedAt: string;
 }

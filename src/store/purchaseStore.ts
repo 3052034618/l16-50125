@@ -4,6 +4,7 @@ import type {
   PurchaseStatus,
   PurchaseCategory,
   ApprovalRecord,
+  SupplementaryNote,
   User,
 } from '@/types';
 import { mockPurchases } from '@/data/mockPurchases';
@@ -29,6 +30,7 @@ interface PurchaseState {
       | 'id'
       | 'status'
       | 'approvalRecords'
+      | 'supplementaryNotes'
       | 'createdAt'
       | 'updatedAt'
       | 'applicantId'
@@ -49,7 +51,8 @@ interface PurchaseState {
   submitPurchase: (id: string, user: User) => PurchaseOrder | null;
   approvePurchase: (id: string, user: User, comment?: string) => PurchaseOrder | null;
   rejectPurchase: (id: string, user: User, comment: string) => PurchaseOrder | null;
-  placeOrder: (id: string, supplierName: string, orderDate?: string) => PurchaseOrder | null;
+  addSupplementaryNote: (id: string, user: User, content: string) => PurchaseOrder | null;
+  placeOrder: (id: string, supplierName: string, orderDate?: string, orderNo?: string, expectedShipDate?: string) => PurchaseOrder | null;
   updateShip: (id: string, shipDate?: string) => PurchaseOrder | null;
   confirmReceipt: (id: string, user: User, receiptDate?: string) => PurchaseOrder | null;
   searchPurchases: (params: {
@@ -86,8 +89,12 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     let purchases = getStorage<PurchaseOrder[]>(STORAGE_KEYS.PURCHASES, []);
     if (purchases.length === 0) {
       purchases = mockPurchases;
-      savePurchases(purchases);
     }
+    purchases = purchases.map((p) => ({
+      ...p,
+      supplementaryNotes: p.supplementaryNotes || [],
+    }));
+    savePurchases(purchases);
     set({ purchases, initialized: true });
   },
 
@@ -125,6 +132,7 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       applicantName: applicant.name,
       department: applicant.department,
       approvalRecords,
+      supplementaryNotes: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -194,6 +202,19 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     const nextNode = getNextApprovalNode(purchase.budget);
     const approvalRecords = [...purchase.approvalRecords];
 
+    if (purchase.status === 'rejected') {
+      approvalRecords.push({
+        id: generateId('ar_'),
+        purchaseId: id,
+        approverId: user.id,
+        approverName: user.name,
+        approverRole: user.role,
+        action: 'resubmit',
+        comment: '申请人重新提交',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
     if (nextNode === 'auto_approved') {
       approvalRecords.push({
         id: generateId('ar_'),
@@ -262,7 +283,25 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
     });
   },
 
-  placeOrder: (id, supplierName, orderDate) => {
+  addSupplementaryNote: (id, user, content) => {
+    const purchase = get().getPurchaseById(id);
+    if (!purchase) return null;
+
+    const note: SupplementaryNote = {
+      id: generateId('sn_'),
+      purchaseId: id,
+      authorId: user.id,
+      authorName: user.name,
+      content,
+      createdAt: new Date().toISOString(),
+    };
+
+    return get().updatePurchase(id, {
+      supplementaryNotes: [...(purchase.supplementaryNotes || []), note],
+    });
+  },
+
+  placeOrder: (id, supplierName, orderDate, orderNo, expectedShipDate) => {
     const purchase = get().getPurchaseById(id);
     if (!purchase) return null;
     if (!['approved', 'auto_approved'].includes(purchase.status)) return null;
@@ -271,6 +310,8 @@ export const usePurchaseStore = create<PurchaseState>((set, get) => ({
       status: 'ordered',
       supplierName,
       orderDate: orderDate || formatDate(new Date(), 'date'),
+      orderNo,
+      expectedShipDate,
     });
   },
 

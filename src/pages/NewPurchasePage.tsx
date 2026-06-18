@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Package,
   FileText,
@@ -16,6 +16,7 @@ import {
   Users,
   Building2,
   AlertCircle,
+  Edit3,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { usePurchaseStore } from '@/store/purchaseStore';
@@ -42,10 +43,16 @@ interface FormErrors {
 
 export default function NewPurchasePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEditMode = !!editId;
+
   const { currentUser } = useAuthStore();
-  const { createPurchase, init, initialized } = usePurchaseStore();
+  const { createPurchase, updatePurchase, getPurchaseById, init, initialized } = usePurchaseStore();
   const { success: toastSuccess, error: toastError } = useToast();
   const [submitting, setSubmitting] = useState(false);
+
+  const existingPurchase = editId ? getPurchaseById(editId) : undefined;
 
   const [form, setForm] = useState<FormData>({
     title: '',
@@ -57,12 +64,28 @@ export default function NewPurchasePage() {
     purpose: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!initialized) {
       init();
     }
   }, [init, initialized]);
+
+  useEffect(() => {
+    if (isEditMode && existingPurchase && !loaded) {
+      setForm({
+        title: existingPurchase.title,
+        category: existingPurchase.category,
+        quantity: existingPurchase.quantity,
+        unit: existingPurchase.unit,
+        budget: existingPurchase.budget,
+        expectedDate: existingPurchase.expectedDate,
+        purpose: existingPurchase.purpose,
+      });
+      setLoaded(true);
+    }
+  }, [isEditMode, existingPurchase, loaded]);
 
   const today = formatDate(new Date(), 'date');
 
@@ -141,29 +164,39 @@ export default function NewPurchasePage() {
     setSubmitting(true);
 
     try {
-      const purchase = createPurchase(
-        {
-          title: form.title.trim(),
-          category: form.category,
-          quantity: form.quantity,
-          unit: form.unit,
-          budget: form.budget,
-          expectedDate: form.expectedDate,
-          purpose: form.purpose.trim(),
-        },
-        currentUser,
-        asDraft
-      );
+      const data = {
+        title: form.title.trim(),
+        category: form.category,
+        quantity: form.quantity,
+        unit: form.unit,
+        budget: form.budget,
+        expectedDate: form.expectedDate,
+        purpose: form.purpose.trim(),
+      };
 
-      if (asDraft) {
-        toastSuccess('草稿保存成功');
+      if (isEditMode && editId) {
+        const result = updatePurchase(editId, data);
+        if (result) {
+          if (asDraft) {
+            toastSuccess('草稿已保存');
+          } else {
+            toastSuccess('申请已更新，请到详情页提交');
+          }
+          navigate(`/purchase/${editId}`);
+        } else {
+          toastError('保存失败');
+        }
       } else {
-        toastSuccess('申请提交成功');
+        const purchase = createPurchase(data, currentUser, asDraft);
+        if (asDraft) {
+          toastSuccess('草稿保存成功');
+        } else {
+          toastSuccess('申请提交成功');
+        }
+        navigate(`/purchase/${purchase.id}`);
       }
-
-      navigate(`/purchase/${purchase.id}`);
     } catch {
-      toastError(asDraft ? '草稿保存失败' : '申请提交失败');
+      toastError(isEditMode ? '保存失败' : asDraft ? '草稿保存失败' : '申请提交失败');
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +240,23 @@ export default function NewPurchasePage() {
     indigo: 'border-indigo-200 bg-indigo-50 text-indigo-700',
   } as const;
 
+  if (isEditMode && !existingPurchase && initialized) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <AlertCircle className="h-12 w-12 text-slate-300 mb-4" />
+        <p className="text-lg font-medium text-slate-600 mb-2">申请不存在</p>
+        <p className="text-sm text-slate-400 mb-6">该采购申请不存在或已被删除</p>
+        <button
+          onClick={() => navigate('/purchase/list')}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          返回列表
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -217,10 +267,19 @@ export default function NewPurchasePage() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">新建采购申请</h1>
+          <h1 className="text-2xl font-bold text-slate-800">
+            {isEditMode ? '编辑采购申请' : '新建采购申请'}
+          </h1>
           {currentUser && (
             <p className="mt-1 text-sm text-slate-500">
-              申请人：{currentUser.name}（{currentUser.department} · {ROLE_LABELS[currentUser.role]}）
+              {isEditMode ? (
+                <>
+                  <Edit3 className="inline h-3.5 w-3.5 mr-1" />
+                  编辑申请：{existingPurchase?.title}
+                </>
+              ) : (
+                `申请人：${currentUser.name}（${currentUser.department} · ${ROLE_LABELS[currentUser.role]}）`
+              )}
             </p>
           )}
         </div>
@@ -393,22 +452,45 @@ export default function NewPurchasePage() {
             <span className="text-red-500">*</span> 为必填项
           </p>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => handleSubmit(true)}
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Save className="h-4 w-4" />
-              保存草稿
-            </button>
-            <button
-              onClick={() => handleSubmit(false)}
-              disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Send className="h-4 w-4" />
-              提交申请
-            </button>
+            {isEditMode ? (
+              <>
+                <button
+                  onClick={() => handleSubmit(true)}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  保存草稿
+                </button>
+                <button
+                  onClick={() => handleSubmit(false)}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  保存修改
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleSubmit(true)}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  保存草稿
+                </button>
+                <button
+                  onClick={() => handleSubmit(false)}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-blue-500/25 transition-all hover:from-blue-700 hover:to-blue-800 hover:shadow-blue-500/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  提交申请
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

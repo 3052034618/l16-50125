@@ -1,7 +1,7 @@
 import type { PurchaseOrder } from '@/types';
 import { getFutureDate, getPastDate } from '@/utils/helpers';
 
-export const mockPurchases: PurchaseOrder[] = [
+const rawPurchases = [
   {
     id: 'PO-20260610-1001',
     title: 'A4打印纸采购',
@@ -426,3 +426,8 @@ export const mockPurchases: PurchaseOrder[] = [
     updatedAt: getPastDate(0) + 'T09:00:00',
   },
 ];
+
+export const mockPurchases: PurchaseOrder[] = rawPurchases.map((p: Record<string, unknown>) => ({
+  ...p,
+  supplementaryNotes: (p as Record<string, unknown>).supplementaryNotes || [],
+})) as PurchaseOrder[];

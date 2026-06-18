@@ -49,6 +49,8 @@ export default function ProcurementPage() {
 
   const [supplierName, setSupplierName] = useState('');
   const [orderDate, setOrderDate] = useState(formatDate(new Date(), 'date'));
+  const [orderNo, setOrderNo] = useState('');
+  const [expectedShipDate, setExpectedShipDate] = useState('');
   const [shipDate, setShipDate] = useState(formatDate(new Date(), 'date'));
   const [receiptDate, setReceiptDate] = useState(formatDate(new Date(), 'date'));
 
@@ -107,6 +109,8 @@ export default function ProcurementPage() {
   const resetModals = () => {
     setSupplierName('');
     setOrderDate(formatDate(new Date(), 'date'));
+    setOrderNo('');
+    setExpectedShipDate('');
     setShipDate(formatDate(new Date(), 'date'));
     setReceiptDate(formatDate(new Date(), 'date'));
   };
@@ -117,7 +121,7 @@ export default function ProcurementPage() {
       toast.error('请填写供应商名称');
       return;
     }
-    const result = placeOrder(orderModal.id, supplierName.trim(), orderDate);
+    const result = placeOrder(orderModal.id, supplierName.trim(), orderDate, orderNo.trim() || undefined, expectedShipDate || undefined);
     if (result) {
       toast.success('下单成功');
       setOrderModal(null);
@@ -499,10 +503,22 @@ export default function ProcurementPage() {
                   <p className="text-sm text-slate-700 mt-1">{detailModal.supplierName}</p>
                 </div>
               )}
+              {detailModal.orderNo && (
+                <div>
+                  <p className="text-xs text-slate-500">订单号</p>
+                  <p className="text-sm text-slate-700 mt-1 font-mono">{detailModal.orderNo}</p>
+                </div>
+              )}
               {detailModal.orderDate && (
                 <div>
                   <p className="text-xs text-slate-500">下单日期</p>
                   <p className="text-sm text-slate-700 mt-1">{detailModal.orderDate}</p>
+                </div>
+              )}
+              {detailModal.expectedShipDate && (
+                <div>
+                  <p className="text-xs text-slate-500">预计发货时间</p>
+                  <p className="text-sm text-slate-700 mt-1">{detailModal.expectedShipDate}</p>
                 </div>
               )}
               {detailModal.shipDate && (
@@ -583,13 +599,34 @@ export default function ProcurementPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">下单日期</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">订单号</label>
             <input
-              type="date"
-              value={orderDate}
-              onChange={(e) => setOrderDate(e.target.value)}
+              type="text"
+              value={orderNo}
+              onChange={(e) => setOrderNo(e.target.value)}
+              placeholder="请输入供应商订单号"
               className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">下单日期</label>
+              <input
+                type="date"
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">预计发货时间</label>
+              <input
+                type="date"
+                value={expectedShipDate}
+                onChange={(e) => setExpectedShipDate(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
           </div>
         </div>
       </Modal>
